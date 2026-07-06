@@ -1,0 +1,94 @@
+# ╔══════════════════════════════════════════════════════════════════════╗
+# ║        SuperChargedServer — Maintenance Mode (isolated config)         ║
+# ╠══════════════════════════════════════════════════════════════════════╣
+# ║ This file is fully decoupled from configs/motd.yml.                    ║
+# ║                                                                        ║
+# ║ "MAINTENANCE FIRST" ROUTING: while maintenance is active (manual       ║
+# ║ `enabled: true` OR an active scheduled window), every server list      ║
+# ║ ping is short-circuited to the presentation block below — no profile   ║
+# ║ inside motd.yml is read or evaluated.                                  ║
+# ║                                                                        ║
+# ║ The presentation sub-nodes (icon / update-interval-ticks / motd /      ║
+# ║ playerCount) use the exact same AdvancedServerList syntax as           ║
+# ║ motd.yml — see that file for the full reference.                       ║
+# ╚══════════════════════════════════════════════════════════════════════╝
+
+# Master switch — flips the entire server into lockdown manually.
+# The scheduler below can also activate the lockdown automatically.
+enabled: false
+
+# Players holding this permission bypass the lockdown entirely:
+# they are never kicked and may join while maintenance is active.
+bypass-permission: "supercharged.maintenance.bypass"
+
+# Sent to non-staff players the moment maintenance is activated while
+# they are online, and to anyone attempting to join during the lockdown.
+# MiniMessage and legacy (&c) colors supported.
+kick-message: |-
+  <red><bold>MAINTENANCE</bold></red>
+  <gray>SuperChargedServer is undergoing scheduled maintenance.
+  <gray>Follow <aqua>discord.gg/supercharged</aqua> for live updates.
+
+# ── Automated chronological scheduler ──────────────────────────────────
+# Define a precise maintenance window. A lightweight async task polls the
+# system clock; when the current time enters the window the lockdown is
+# activated automatically (players kicked, ping presentation swapped,
+# Discord notified) and lifted gracefully once end-time is reached.
+schedule:
+  enabled: false
+  # Local server time, format: YYYY-MM-DD HH:MM:SS
+  start-time: "2026-01-01 04:00:00"
+  end-time: "2026-01-01 06:00:00"
+  # How often the async task polls the clock (seconds, min 1).
+  check-interval-seconds: 5
+  # Countdown broadcasts before start-time. Each threshold (seconds
+  # remaining) fires exactly once. {time} = remaining time, formatted.
+  warning-thresholds-seconds: [600, 300, 60, 10]
+  warning-message: "<gold><bold>⚠</bold> <yellow>Scheduled maintenance begins in <white>{time}</white> — please wrap up what you're doing!"
+
+# Broadcast to remaining (bypass) players when the state flips.
+broadcast:
+  activated: "<red><bold>⚠</bold> <gray>Maintenance mode is now <red>ACTIVE</red>."
+  lifted: "<green><bold>✔</bold> <gray>Maintenance mode has been <green>lifted</green> — the server is back online."
+
+# ── Command lockdown whitelist ──────────────────────────────────────────
+# While maintenance is active (manual or scheduled), every command is
+# intercepted and cancelled unless its base command is listed below.
+# Namespaced forms are normalized ("minecraft:stop" matches "stop").
+command-lockdown:
+  enabled: true
+  whitelist:
+    - "plugins"
+    - "stop"
+    - "superadmin"
+    - "superlogin"
+    - "profile"
+  denied-command-message: "<red><bold>⚠</bold> <gray>Command <white>/{command}</white> is disabled during maintenance."
+
+# ── Network presentation (ASL syntax) ──────────────────────────────────
+# Animated frame sequence: icons/maintenance/ holds numbered frames
+# (0.png, 1.png, 2.png, ...) — all validated as 64x64 .png and cached
+# in memory at startup. Set animated: false to serve a random icon from
+# the folder instead, or point `icon` at a single file
+# (e.g. "maintenance/gears.png").
+icon: "maintenance/"
+animated: true
+update-interval-ticks: 20
+
+motd:
+  - |-
+    <red><bold>⚠ MAINTENANCE ⚠</bold></red>
+    <gray>We are upgrading the network — back shortly.
+
+playerCount:
+  # Absolute player masking: the ping response hides the player count
+  # entirely and suppresses all hover metrics. This overrides every
+  # other playerCount manipulation.
+  hidePlayers: true
+  # Optional status marker rendered in place of the slot counter
+  # (client-protocol permitting). Leave empty for the client's own
+  # dark-grey unknown indicator.
+  text: "<dark_gray>??/??"
+  extraPlayers: 0
+  maxPlayers: -1
+  hover: []                     # ignored while hidePlayers is true

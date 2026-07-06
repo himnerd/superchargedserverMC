@@ -1,0 +1,127 @@
+# ╔══════════════════════════════════════════════════════════════════════╗
+# ║          SuperChargedServer — MOTD & Icon Engine (ASL format)          ║
+# ╠══════════════════════════════════════════════════════════════════════╣
+# ║ Configuration follows AdvancedServerList (ASL) structure:              ║
+# ║   profiles → priority → motd / icon / playerCount                      ║
+# ║                                                                        ║
+# ║ TEXT FORMATTING                                                        ║
+# ║   MiniMessage (<gradient:#00E5FF:#7B2FFF>, <bold>, <#FF5555>) and      ║
+# ║   legacy (&c) are both supported. PlaceholderAPI is applied if         ║
+# ║   installed.                                                           ║
+# ║                                                                        ║
+# ║ MOTD MULTILINE SYNTAX                                                  ║
+# ║   Each list entry under `motd:` is ONE complete MOTD variant.          ║
+# ║   Use a YAML block scalar (|-) to write the two display lines          ║
+# ║   naturally — line breaks in the block become MOTD line breaks.        ║
+# ║   Multiple entries rotate according to settings.mode.                  ║
+# ║                                                                        ║
+# ║ ICON PATHS  (relative to plugins/SuperChargedServer/icons/)            ║
+# ║   Specific icon .... icon: "events/christmas.png"   → exactly 1 file   ║
+# ║   Folder pool ...... icon: "summer/"                → random per ping  ║
+# ║   Wildcard pool .... icon: "factions_season_2/*.png"→ random per ping  ║
+# ║   Animation ........ icon: "animations/loading_fire/"                  ║
+# ║                      animated: true                                    ║
+# ║                      → folder holds numbered frames (0.png, 1.png…)    ║
+# ║                        served sequentially by a global async ticker    ║
+# ║                        advancing every `update-interval-ticks`.        ║
+# ║   Every icon must be a 64x64 .png. All icons in all subdirectories     ║
+# ║   are validated and cached in memory at startup/reload — zero disk     ║
+# ║   I/O ever happens during a ping.                                      ║
+# ║                                                                        ║
+# ║ playerCount SUB-NODES (ASL layout)                                     ║
+# ║   hidePlayers ... true = absolutely mask the player counter. The       ║
+# ║                   client shows an unknown "???" marker, all hover      ║
+# ║                   metrics are suppressed, and every other playerCount  ║
+# ║                   manipulation below is overridden.                    ║
+# ║   text .......... non-empty = replace the "12/100" slot counter with   ║
+# ║                   custom text (rendered via the protocol version line).║
+# ║   hover ......... lines shown when hovering the player count.          ║
+# ║   extraPlayers .. added on top of the real online count.               ║
+# ║   maxPlayers .... override the displayed max slots (-1 = real value).  ║
+# ║                                                                        ║
+# ║ PROFILE SELECTION                                                      ║
+# ║   Profiles are evaluated highest priority first; the first profile     ║
+# ║   whose `schedule` condition matches serves the ping.                  ║
+# ║   schedule: "always"  or a daily window  "HH:mm-HH:mm"                 ║
+# ║   (overnight windows like "22:00-06:00" are supported).                ║
+# ║                                                                        ║
+# ║ NOTE: Maintenance mode now lives in configs/maintenance.yml and        ║
+# ║ overrides this entire file while enabled.                              ║
+# ╚══════════════════════════════════════════════════════════════════════╝
+
+settings:
+  mode: RANDOM                  # RANDOM | SEQUENTIAL — rotation of `motd` entries
+
+profiles:
+
+  # ── Baseline profile — always eligible, lowest priority ──────────────
+  default:
+    enabled: true
+    priority: 0
+    schedule: "always"
+    motd:
+      - |-
+        <gradient:#00E5FF:#7B2FFF><bold>SuperChargedServer</bold></gradient>
+        <gray>A unified experience across Java, Bedrock & Discord
+      - |-
+        <gradient:#00E5FF:#7B2FFF><bold>SuperChargedServer</bold></gradient>
+        <yellow>Link your account with <white>/superlogin<yellow>!
+    # Explicit single icon target: plugins/SuperChargedServer/icons/default.png
+    icon: "default.png"
+    animated: false
+    playerCount:
+      hidePlayers: false
+      text: ""                  # empty = show the real "online/max" counter
+      extraPlayers: 0
+      maxPlayers: -1
+      hover:
+        - "&b&lSuperChargedServer"
+        - "&7Java + Bedrock crossplay"
+        - "&7Discord-linked SuperAccounts"
+
+  # ── Event profile — wildcard icon pool, beats default while active ───
+  launch_event:
+    enabled: false
+    priority: 10
+    schedule: "always"
+    motd:
+      - |-
+        <gradient:#FFD700:#FF4500><bold>⚡ SEASON 2 LAUNCH ⚡</bold></gradient>
+        <gray>Fresh factions map — join the rush!
+    # Wildcard pool: every cached 64x64 .png inside
+    # icons/factions_season_2/ — a random one is served on each ping.
+    icon: "factions_season_2/*.png"
+    animated: false
+    playerCount:
+      hidePlayers: false
+      text: "&6&lLAUNCH DAY"    # replaces the slot counter while the event runs
+      extraPlayers: 25
+      maxPlayers: 1000
+      hover:
+        - "&6&lSeason 2 is LIVE"
+        - "&7New enchants, new bosses, new map"
+
+  # ── Night profile — animated icon, sequential frame loop ─────────────
+  night:
+    enabled: true
+    priority: 5
+    schedule: "22:00-06:00"     # overnight window
+    motd:
+      - |-
+        <gradient:#2C3E50:#8E44AD><bold>SuperChargedServer</bold></gradient> <dark_purple>☾
+        <gray>Night owls welcome — double XP until dawn
+    # Animated frame sequence: icons/animations/night_pulse/ contains
+    # 0.png, 1.png, 2.png, ... — the global ticker advances one frame
+    # every `update-interval-ticks` and every ping serves the exact
+    # frame matching the current ticker state.
+    icon: "animations/night_pulse/"
+    animated: true
+    update-interval-ticks: 10
+    playerCount:
+      hidePlayers: false
+      text: ""
+      extraPlayers: 0
+      maxPlayers: -1
+      hover:
+        - "&5&lNight Shift"
+        - "&7Double XP active until 06:00"

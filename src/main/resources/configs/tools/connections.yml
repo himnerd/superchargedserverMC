@@ -1,0 +1,58 @@
+# SuperChargedServer — Connection Messages Tool
+# Custom join/quit messages using the same ASL-style presentation syntax
+# as motd.yml: MiniMessage tags (<gradient>, <bold>, ...) or legacy & codes,
+# priority-ordered profiles, schedule conditions.
+#
+# Placeholders: {player}, {displayname}, {online}, {max}
+#               (+ any PlaceholderAPI placeholder if installed)
+#
+# Conditions per profile (all listed conditions must match):
+#   schedule:   "always" or "HH:mm-HH:mm" (overnight windows like 22:00-06:00 work)
+#   permission: player must have this permission ("" = everyone)
+#   first-join: true = join message only for a player's very first join
+#   worlds:     restrict to specific world names ([] = all worlds)
+#
+# Per-player admin overrides (take precedence over every profile):
+#   /superadmin joinmsg <player> <message...>   set a custom join message
+#   /superadmin joinmsg <player> hide           silence the join message
+#   /superadmin joinmsg <player> clear          remove the override
+#   (same for /superadmin quitmsg)
+
+settings:
+  enabled: true
+  # RANDOM or SEQUENTIAL — how a line is picked when a profile lists several
+  mode: RANDOM
+
+profiles:
+  first-join:
+    priority: 100
+    conditions:
+      first-join: true
+    join:
+      - "<gradient:#00E5FF:#7B2FFF><bold>WELCOME</bold></gradient> <white>{player}</white> <gray>joined for the first time! <yellow>({online} online)"
+  staff:
+    priority: 50
+    conditions:
+      permission: "superadmin.staff"
+    join:
+      - "<dark_gray>[<red>STAFF</red>]</dark_gray> <white>{player}</white> <gray>is now online."
+    quit:
+      - "<dark_gray>[<red>STAFF</red>]</dark_gray> <white>{player}</white> <gray>went offline."
+  night:
+    enabled: false
+    priority: 10
+    conditions:
+      schedule: "22:00-06:00"
+    join:
+      - "<dark_purple>☽</dark_purple> <white>{player}</white> <gray>sneaks in under the moonlight..."
+    quit:
+      - "<dark_purple>☽</dark_purple> <white>{player}</white> <gray>vanished into the night."
+  default:
+    priority: 0
+    join:
+      - "<dark_gray>[<green>+</green>]</dark_gray> <white>{player}</white>"
+    quit:
+      - "<dark_gray>[<red>-</red>]</dark_gray> <white>{player}</white>"
+
+# Per-player overrides written by /superadmin joinmsg|quitmsg — managed in-game.
+players: {}

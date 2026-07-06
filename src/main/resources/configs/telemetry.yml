@@ -1,0 +1,15 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║           SuperChargedServer — Telemetry Ingestion                ║
+# ╚══════════════════════════════════════════════════════════════════╝
+# Producer-consumer ingestion. Events are queued lock-free on the main
+# thread and drained by an asynchronous consumer — zero main-thread IO.
+
+ingestion:
+  flush-interval-ticks: 100     # async queue drain cadence
+  queue-warning-size: 10000     # console warning when the queue backs up
+  afk-timeout-minutes: 5        # sessions idle past this are excluded
+
+vectors:
+  economy: true
+  social: true
+  combat: true

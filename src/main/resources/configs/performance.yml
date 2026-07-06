@@ -1,0 +1,38 @@
+# ╔══════════════════════════════════════════════════════════════════════╗
+# ║       SuperChargedServer — Performance & Network Protection            ║
+# ╠══════════════════════════════════════════════════════════════════════╣
+# ║ Every value below is validated at load time. Broken formatting or     ║
+# ║ out-of-range numbers never crash the plugin — the loader logs a       ║
+# ║ readable warning and injects a safe built-in default instead.         ║
+# ╚══════════════════════════════════════════════════════════════════════╝
+
+threading:
+  # Worker threads for telemetry / database batch work. Clamped 1-8.
+  telemetry-pool-size: 2
+
+cache-settings:
+  # Seconds after logout before a player's cached SuperAccount metadata
+  # is purged from server memory (row stays in the database and is
+  # transparently reloaded on the next join). Must be greater than 60.
+  profile-expiration-seconds: 900
+
+network-protection:
+  ping-rate-limiting:
+    enabled: true
+    # Max server-list pings allowed per IP per second. Clamped 1-50.
+    max-pings-per-second: 5
+    # What happens to violating pings:
+    #   DROP_CONNECTION       - close the connection instantly
+    #   SERVE_STATIC_FALLBACK - serve the vanilla ping untouched (no icon
+    #                           lookup, no MiniMessage gradients computed)
+    violation-action: "SERVE_STATIC_FALLBACK"
+
+database:
+  # SuperAccount writes are queued in memory and flushed to the database
+  # in bulk batches on a worker thread every N seconds.
+  batch-flush-interval-seconds: 30
+  telemetry-pruning:
+    # Weekly background task that deletes stale telemetry files from the
+    # /AI/ data folder to prevent file bloat.
+    enabled: true
+    retention-days: 30

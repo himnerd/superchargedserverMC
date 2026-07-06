@@ -1,0 +1,100 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║            SuperChargedServer — Discord Integration               ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+discord-enabled: false
+
+# ── Bot identification ───────────────────────────────────────────────
+bot-settings:
+  bot-token: "PASTE-YOUR-BOT-TOKEN-HERE"
+  guild-id: "000000000000000000"
+  application-id: "000000000000000000"
+  client-id: "000000000000000000"
+  status: "ONLINE"              # ONLINE | IDLE | DND
+  activity-type: "PLAYING"      # PLAYING | STREAMING | LISTENING | WATCHING
+  activity-text: "SuperChargedServer"
+
+# Enable these in the Discord Developer Portal too!
+intents:
+  guild-members: true
+  guild-messages: true
+  message-content: true
+
+# ── Gatekeeping ──────────────────────────────────────────────────────
+require-discord-presence:
+  enabled: false
+  kick-messages:
+    not-linked: "<red>You must link a Discord account to play.<newline><gray>Join our Discord and DM the bot <white>/superlogin<gray> to get a code."
+    not-in-guild: "<red>You must be a member of our Discord server.<newline><gray>discord.gg/yourserver"
+    banned: "<dark_red>Your SuperAccount has been banned."
+
+# ── Linking prompts ──────────────────────────────────────────────────
+linking:
+  prompt-message: "<gold>Your SuperAccount is not linked to Discord!<newline><gray>DM the bot <white>/superlogin<gray> or run <white>/superlogin<gray> in-game to start."
+  prompt-actionbar: "<yellow>⚠ Link your SuperAccount to Discord for rewards!"
+
+# ── Slash command role gates (role IDs; empty = Administrator only) ──
+# Gates: /account-lookup (account-lookup), /ai-status (ai-commands),
+# /console + /execute (console), /embed (embed), /announce (announce),
+# /profile (profile), /status (status). /link and /rewards are open to
+# every guild member. Registered on the guild set in bot-settings.guild-id.
+command-permissions:
+  account-lookup: []
+  ai-commands: []
+  console: []
+  embed: []
+  announce: []
+  poll: []
+  profile: []
+  status: []
+
+# ── Announcements (/announce, /embed, /profile) ──────────────────────
+announcements:
+  # Channel /announce posts to and where the announcer webhook lives.
+  # Also the default target for /embed when no channel option is given.
+  channel-id: ""
+  # Default webhook identity — override it live with /profile.
+  webhook-name: "SuperCharged Announcer"
+  # In-game broadcast format for /announce ({message} placeholder,
+  # MiniMessage + legacy & codes + hex supported).
+  in-game-format: "<gradient:#00E5FF:#7B2FFF><bold>ANNOUNCEMENT</bold></gradient> <dark_gray>» <white>{message}"
+
+# ── /rewards display ({points} = linked bonus per minute) ────────────
+rewards-display:
+  - "🎁 +{points} Play Points every online minute"
+  - "🏷 Exclusive linked member perks"
+  - "🔐 SuperAccount security & MFA protection"
+
+# ── Logging channels (channel IDs) ───────────────────────────────────
+webhook-channels:
+  registrations: ""
+  links: ""
+  security: ""
+
+# ── Maintenance announcements ────────────────────────────────────────
+# Fired automatically whenever maintenance toggles on or off (manual
+# toggle or scheduled window). The bot's presence is updated live.
+maintenance-announcements:
+  channel-id: ""
+  title-active: "🔧 Maintenance Started"
+  title-lifted: "✅ Server Back Online"
+  description-active: "The network is now undergoing maintenance. We'll be back shortly!"
+  description-lifted: "Maintenance is complete — the network is back online. See you in-game!"
+  presence-text: "🔧 Maintenance in progress"
+
+# ── Remote console ───────────────────────────────────────────────────
+console:
+  channel-id: ""
+  ansi: true
+  two-man-rule:
+    enabled: true
+    commands: ["stop", "op", "deop", "reload"]
+
+# ── Role sync ────────────────────────────────────────────────────────
+role-sync:
+  # Role applied while the player is online (empty = disabled).
+  in-game-role-id: ""
+  # LuckPerms primary group -> Discord role ID.
+  groups:
+    admin: ""
+    vip: ""

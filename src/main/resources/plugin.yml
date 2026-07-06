@@ -1,0 +1,37 @@
+name: SuperChargedServer
+main: com.superchargedserver.SuperChargedServer
+version: 1.0.0
+author: HimnerdMC
+api-version: '1.13'
+description: Enterprise admin workforce management for SuperChargedServer
+commands:
+  superadmin:
+    description: SuperCharged administration and configuration
+    aliases: [sa]
+    permission: superadmin.admin
+  superlogin:
+    description: Log into your SuperAccount
+  profile:
+    description: View a player profile
+  wikis:
+    description: Browse server wikis
+  ban:
+    description: Ban a player
+    permission: superadmin.admin
+  unban:
+    description: Unban a player
+    permission: superadmin.admin
+  whitelist:
+    description: Manage the server whitelist
+    permission: superadmin.admin
+  link:
+    description: Generate a code to link your SuperAccount to Discord
+  aihelp:
+    description: Ask the AI support assistant a question
+permissions:
+  superadmin.admin:
+    description: Operator access to SuperAdmin management
+    default: op
+  superadmin.staff:
+    description: Base staff access
+    default: false

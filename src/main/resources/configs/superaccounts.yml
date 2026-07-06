@@ -1,0 +1,93 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║              SuperChargedServer — SuperAccount Core               ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+# Master toggle for the unified account infrastructure.
+superaccounts: true
+
+# User-facing brand name. Every message that would say "SuperAccount"
+# is dynamically replaced with this value (user-side only, the backend
+# terminology never changes).
+custom-system-name: "SuperAccount"
+
+# ── Naming hierarchy ─────────────────────────────────────────────────
+naming-hierarchy:
+  # When a Discord identity is linked, rename the account to the
+  # user's global Discord tag. Otherwise the Java username is used.
+  prefer-discord-tag: true
+  # Strip the Floodgate prefix (usually ".") from Bedrock usernames.
+  strip-bedrock-prefix: true
+
+# ── Geyser / Floodgate ───────────────────────────────────────────────
+geyser:
+  # Automatically merge a Bedrock connection into an existing Java
+  # SuperAccount when Floodgate reports a verified link.
+  auto-merge-linked: true
+  merge:
+    inventories: true
+    permission-groups: true
+    ender-chest: true
+
+# ── Global sync / database ───────────────────────────────────────────
+global-sync:
+  # true  = network mode (MySQL/MariaDB), profiles pulled on join.
+  # false = local mode, SQLite file under data/accounts/.
+  enabled: false
+  database:
+    type: "sqlite"              # sqlite | mysql
+    host: "localhost"
+    port: 3306
+    database: "supercharged"
+    username: "root"
+    password: "change-me"
+    useSSL: false
+    connection-timeout: 8000    # milliseconds
+    maximum-pool-size: 8
+    leak-detection-threshold: 15000
+
+# ── /superlogin handshake ────────────────────────────────────────────
+superlogin:
+  code-length: 10               # cryptographically secure alphanumeric
+  code-expiration-seconds: 300  # strict 5-minute window
+  max-attempts: 5               # failed redemptions per IP before lockdown
+  lockout-minutes: 10
+  # Both accounts must be online on THIS server for an in-game merge.
+  require-concurrent-presence: true
+
+# ── Security & auditing ──────────────────────────────────────────────
+security:
+  ip-session-lock:
+    enabled: true
+    window-minutes: 30          # breach flag window for IP changes
+    check-asn: false            # requires an external GeoIP/ASN source
+  vpn-detection:
+    enabled: false
+    api-url: "https://proxycheck.io/v2/%ip%?vpn=1"
+  # Days a Minecraft UUID / Discord ID is blocked from re-linking
+  # after an unlink ("account hopping" protection).
+  unlink-cooldown-days: 7
+  # Freeze all associated Minecraft accounts if the Discord identity
+  # leaves or is removed from the guild.
+  quarantine-on-discord-loss: true
+  # Deny unverified players while the database or bot is offline.
+  failsafe-lockdown: true
+  failsafe-kick-message: "<red>The server is in failsafe lockdown.<newline><gray>Please try again in a few minutes."
+  mfa:
+    enabled: true
+    # Accounts holding any of these nodes (or OP) trigger MFA on new IPs.
+    privileged-permissions:
+      - "supercharged.admin"
+      - "group.admin"
+    code-expiration-seconds: 300
+    max-attempts: 3
+
+# ── Profile status messages ──────────────────────────────────────────
+status:
+  blacklisted-words:
+    - "badword"
+    - "slur"
+
+# ── Community integration rewards ────────────────────────────────────
+rewards:
+  # Play Points granted per online minute to Discord-linked accounts.
+  linked-bonus-points-per-minute: 1

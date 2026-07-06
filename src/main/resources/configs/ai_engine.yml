@@ -1,0 +1,106 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║           SuperChargedServer — AI Cognition Engine                ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+engine:
+  enabled: true
+  scan-interval-seconds: 60     # asynchronous behavioral scan cadence
+  data-pruning-hours: 72        # telemetry older than this is discarded
+
+# ── Telemetry tracking vectors ───────────────────────────────────────
+telemetry-tracking:
+  economy:
+    enabled: true
+    max-currency-per-minute: 5000.0   # Vault gain ceiling before flagging
+    max-blocks-per-minute: 250        # break+place ceiling
+  social:
+    enabled: true
+    caps-ratio-threshold: 0.7         # message flagged when caps ratio exceeds
+    repeat-char-trigger: 5            # consecutive identical chars
+    toxic-patterns:                   # heuristic regex patterns (case-insensitive)
+      - "(?i)\\bkys\\b"
+      - "(?i)\\btrash\\s+server\\b"
+      - "(?i)\\bnoob{2,}\\b"
+  combat:
+    enabled: true
+    max-attacks-per-minute: 90        # sustained HPS ceiling
+
+# ── Analytic weightings (must sum to 1.0) ────────────────────────────
+weights:
+  economy: 0.40
+  social: 0.25
+  combat: 0.35
+
+# ── Alert thresholds (0.0 - 100.0) ───────────────────────────────────
+thresholds:
+  low: 40.0        # internal background logging only
+  medium: 70.0     # emergency Discord webhook dispatch
+  critical: 90.0   # dashboard flag + optional automated actions
+
+# ── Automated actions on CRITICAL ────────────────────────────────────
+automated-actions:
+  enabled: false
+  commands:
+    - "kick %player% Flagged by the AI engine — please contact staff."
+
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║        SuperChargedServer — Generative AI Support Engine          ║
+# ╚══════════════════════════════════════════════════════════════════╝
+ai-support:
+  enabled: true
+
+  # ── Bot identity (webhooks + autonomous self-recognition) ──────────
+  ai-bot:
+    display-name: "SuperCharged Assistant"
+    avatar-url: "https://example.com"
+
+  # ── LLM backend ─────────────────────────────────────────────────────
+  llm:
+    provider: "openai"            # openai | anthropic | ollama
+    api-key: "PASTE-YOUR-KEY-HERE"
+    endpoint: ""                  # blank = provider default (set for LM Studio / custom hosts)
+    model: "gpt-4o"
+    max-tokens: 900
+    temperature: 0.4
+    timeout-seconds: 30
+    max-context-chars: 12000
+
+  # false = strict local RAG (AI/feeds only), true = hybrid web search enrichment
+  allow-internet-fetch: false
+
+  fallback-message: "I could not find that in our knowledge base. Please use the human support button below or open a staff request so our team can assist you personally!"
+
+  # ── Confidence scoring tiers ────────────────────────────────────────
+  confidence:
+    high-threshold: 85            # above: full answer, cached as verified FAQ
+    low-threshold: 50             # below: skip generation, escalate to humans
+    warning-footer: "⚠️ This solution is generated based on partial data matches. If this does not resolve your issue, please click the human support button below."
+
+  # ── FAQ cache (SQLite) ──────────────────────────────────────────────
+  faq-cache:
+    enabled: true
+    expiry-days: 7
+    similarity-threshold: 0.82
+
+  # ── Knowledge feeds (plugins/SuperChargedServer/AI/feeds) ───────────
+  feeds:
+    max-context-chunks: 6
+
+  # ── Discord ticket integration ──────────────────────────────────────
+  tickets:
+    enabled: true
+    channel-prefix: "ticket-"
+    greeting: "Hello! I am {display-name}, your automated assistant. Describe your issue in detail and I will start working on a solution right away!"
+    min-delay-ms: 2000
+    max-delay-ms: 4000
+    human-support-role-ids: []    # role IDs pinged by the human help button / escalations
+
+  # ── Intent detection / emergency escalation ─────────────────────────
+  intent:
+    emergency-role-ids: []        # role IDs pinged instantly on critical keywords
+    critical-keywords:
+      - "dupe"
+      - "exploit"
+      - "crash"
+      - "hacker"
+      - "chargeback"

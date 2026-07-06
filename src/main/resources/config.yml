@@ -1,0 +1,47 @@
+mysql:
+  host: localhost
+  port: 3306
+  database: superadmin
+  user: root
+  password: ""
+
+discord:
+  enabled: false
+  token: ""
+  guild-id: ""
+  log-channel: ""
+  handover-channel: ""
+  staff-channel: ""
+  leaderboard-channel: ""
+
+# World admins must be in to clock in ("" disables the check)
+staff-hub-world: ""
+# Minutes of inactivity before a player counts as AFK
+afk-minutes: 5
+# Minutes after shift start during which clock-in is allowed
+clock-in-grace-minutes: 15
+
+surge:
+  enabled: true
+  player-threshold: 50
+
+roles:
+  helper:
+    tier: 1
+    discord-role-id: ""
+    permissions:
+      - essentials.kick
+      - essentials.warn
+    training-permissions:
+      - essentials.warn
+  moderator:
+    tier: 2
+    discord-role-id: ""
+    permissions:
+      - essentials.kick
+      - essentials.warn
+      - essentials.mute
+      - essentials.ban
+    training-permissions:
+      - essentials.kick
+      - essentials.warn

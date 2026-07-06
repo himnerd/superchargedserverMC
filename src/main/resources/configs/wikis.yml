@@ -1,0 +1,51 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║               SuperChargedServer — /wikis System                  ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+# GUI  = virtual chest menu | CHAT = interactive clickable chat list
+display-mode: GUI
+
+gui:
+  title: "<gradient:#00E5FF:#7B2FFF>Server Wikis"
+  size: 27                      # 9 - 54
+  filler-material: GRAY_STAINED_GLASS_PANE
+
+chat:
+  links-per-page: 8
+  header: "<gradient:#00E5FF:#7B2FFF><bold>── Server Wikis (page %page%/%pages%) ──"
+  footer: "<gray>Use <white>/wikis <page><gray> to browse."
+
+click-sound: UI_BUTTON_CLICK
+
+# Automatic detection of official wikis for installed plugins.
+# The hook is skipped entirely when set to false or the plugin is absent.
+third-party-hooks:
+  luckperms: true
+  essentialsx: true
+  worldguard: true
+  worldedit: true
+  placeholderapi: true
+  vault: true
+
+# Any fetched or custom URL containing one of these phrases is hidden.
+blacklist-keywords: []
+
+# ── Custom links ─────────────────────────────────────────────────────
+custom-wikis:
+  server-rules:
+    display-name: "<gold><bold>Server Rules"
+    url: "https://example.com/rules"
+    icon: BOOK
+    custom-model-data: 0
+    lore:
+      - "<gray>Everything you need to know"
+      - "<gray>before you play."
+    permission: ""
+  staff-handbook:
+    display-name: "<red><bold>Staff Handbook"
+    url: "https://example.com/staff"
+    icon: WRITABLE_BOOK
+    custom-model-data: 0
+    lore:
+      - "<gray>Internal staff documentation."
+    permission: "supercharged.wiki.staff"

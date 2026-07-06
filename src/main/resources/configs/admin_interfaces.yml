@@ -1,0 +1,23 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║        SuperChargedServer — Admin Interface Layouts               ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+# ── In-game AI Command Center (/superadmin ai) ───────────────────────
+gui:
+  title: "<gradient:#FF3B3B:#FFB13B><bold>AI Command Center"
+  size: 54
+  filler-material: GRAY_STAINED_GLASS_PANE
+  slots:
+    server-health: 4
+    flagged-start: 19           # flagged players fill from here
+  progress-bar:
+    filled: "■"
+    empty: "□"
+    length: 10
+
+# ── Discord embed styling ────────────────────────────────────────────
+embeds:
+  colors:
+    info: "#3498DB"
+    warning: "#E67E22"
+    emergency: "#E74C3C"
