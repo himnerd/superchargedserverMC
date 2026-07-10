@@ -81,27 +81,34 @@ public class DatabaseManager {
                     + "banned INT,"
                     + "custom_data TEXT)");
         }
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate("ALTER TABLE sca_accounts ADD COLUMN discord_tag VARCHAR(64)");
+        } catch (Exception ignored) {
+            // Column already exists on pre-existing installs.
+        }
     }
 
     public void saveAccount(SuperAccount account) {
         if (!online) return;
-        String sql = "REPLACE INTO sca_accounts (account_id, primary_name, discord_id, java_uuids, "
+        String sql = "REPLACE INTO sca_accounts (account_id, primary_name, discord_id, discord_tag, java_uuids, "
                 + "bedrock_uuids, status_message, play_points, last_ip, last_login, mfa_enabled, banned, custom_data) "
-                + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
+                + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
         try (Connection connection = dataSource.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, account.getAccountId().toString());
             ps.setString(2, account.getPrimaryName());
             ps.setString(3, account.getDiscordId());
-            ps.setString(4, joinUuids(account.getJavaUuids()));
-            ps.setString(5, joinUuids(account.getBedrockUuids()));
-            ps.setString(6, account.getStatusMessage());
-            ps.setLong(7, account.getPlayPoints());
-            ps.setString(8, account.getLastIp());
-            ps.setLong(9, account.getLastLogin());
-            ps.setInt(10, account.isMfaEnabled() ? 1 : 0);
-            ps.setInt(11, account.isBanned() ? 1 : 0);
-            ps.setString(12, joinCustomData(account.getCustomData()));
+            ps.setString(4, account.getDiscordTag());
+            ps.setString(5, joinUuids(account.getJavaUuids()));
+            ps.setString(6, joinUuids(account.getBedrockUuids()));
+            ps.setString(7, account.getStatusMessage());
+            ps.setLong(8, account.getPlayPoints());
+            ps.setString(9, account.getLastIp());
+            ps.setLong(10, account.getLastLogin());
+            ps.setInt(11, account.isMfaEnabled() ? 1 : 0);
+            ps.setInt(12, account.isBanned() ? 1 : 0);
+            ps.setString(13, joinCustomData(account.getCustomData()));
             ps.executeUpdate();
         } catch (Exception e) {
             plugin.getLogger().warning("Failed to save account " + account.getPrimaryName() + ": " + e.getMessage());
@@ -157,6 +164,7 @@ public class DatabaseManager {
         account.setAccountId(UUID.fromString(rs.getString("account_id")));
         account.setPrimaryName(rs.getString("primary_name"));
         account.setDiscordId(rs.getString("discord_id"));
+        account.setDiscordTag(rs.getString("discord_tag") == null ? "" : rs.getString("discord_tag"));
         splitUuids(rs.getString("java_uuids"), account.getJavaUuids());
         splitUuids(rs.getString("bedrock_uuids"), account.getBedrockUuids());
         account.setStatusMessage(rs.getString("status_message") == null ? "" : rs.getString("status_message"));

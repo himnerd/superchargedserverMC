@@ -4,6 +4,7 @@ version: 1.0.0
 author: HimnerdMC
 api-version: '1.13'
 description: Enterprise admin workforce management for SuperChargedServer
+depend: [ChargedServer]
 commands:
   superadmin:
     description: SuperCharged administration and configuration

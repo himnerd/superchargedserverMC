@@ -21,6 +21,7 @@ import com.superchargedserver.inventory.gui.GUIListener;
 import com.superchargedserver.inventory.gui.GUIManager;
 import com.superchargedserver.listener.MotdListener;
 import com.superchargedserver.listener.PlayerConnectionListener;
+import com.superchargedserver.listener.DiscordGateListener;
 import com.superchargedserver.motd.IconManager;
 import com.superchargedserver.motd.MaintenanceManager;
 import com.superchargedserver.motd.MotdManager;
@@ -58,6 +59,7 @@ public class SuperChargedServer extends JavaPlugin {
     private AnomalyEngine anomalyEngine;
     private WikiManager wikiManager;
     private GUIManager guiManager;
+    private ChargedServerBridge chargedServerBridge;
 
     @Override
     public void onEnable() {
@@ -114,6 +116,7 @@ public class SuperChargedServer extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(maintenanceManager, this);
         Bukkit.getPluginManager().registerEvents(new MfaListener(this), this);
         Bukkit.getPluginManager().registerEvents(new TelemetryListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new DiscordGateListener(this), this);
 
         getCommand("superlogin").setExecutor(new SuperLoginCommand(this));
         getCommand("profile").setExecutor(new ProfileCommand(this));
@@ -127,11 +130,14 @@ public class SuperChargedServer extends JavaPlugin {
         getCommand("aihelp").setExecutor(new InGameHelpExecutor(this));
 
         SuperChargedAPI.init(this);
+        chargedServerBridge = new ChargedServerBridge(this);
+        chargedServerBridge.hook();
         getLogger().info("SuperChargedServer enabled — " + configManager.systemName() + " system online.");
     }
 
     @Override
     public void onDisable() {
+        if (chargedServerBridge != null) chargedServerBridge.onUnload();
         if (telemetryManager != null) telemetryManager.shutdown();
         if (anomalyEngine != null) anomalyEngine.shutdown();
         if (accountManager != null) accountManager.saveAllSync();

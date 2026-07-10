@@ -329,16 +329,16 @@ public class PollCreationWizard extends ListenerAdapter {
         Poll poll = pollFrom(session);
         drafts().destroy(event.getUser().getId());
         event.deferEdit().queue();
-        channel.sendMessageEmbeds(PollButtonBuilder.buildEmbed(poll, Map.of()))
-                .setComponents(PollButtonBuilder.buildRows(poll, false))
-                .queue(message -> {
+        plugin.getDiscordManager().sendEmbed(channel, PollButtonBuilder.buildEmbed(poll, Map.of()),
+                PollButtonBuilder.buildRows(poll, false),
+                message -> {
                     poll.setMessageId(message.getId());
                     plugin.getDiscordManager().getPollRepository().save(poll);
                     plugin.getDiscordManager().getPollScheduler().schedule(poll);
-                    event.getHook().editOriginal("📊 Poll deployed in " + channel.getAsMention()
-                                    + " — auto-closes <t:" + poll.getEndTime() / 1000L + ":R>.")
+                    event.getHook().editOriginal("Poll deployed in " + channel.getAsMention()
+                                    + " \u2014 auto-closes <t:" + poll.getEndTime() / 1000L + ":R>.")
                             .setEmbeds().setComponents().queue();
-                }, error -> event.getHook().editOriginal("⚠ Failed to deploy poll: " + error.getMessage())
+                }, error -> event.getHook().editOriginal("Failed to deploy poll: " + error)
                         .setEmbeds().setComponents().queue());
     }
 
@@ -404,13 +404,13 @@ public class PollCreationWizard extends ListenerAdapter {
             poll.setAllowedRoleIds(allowedRoles);
             poll.setOptions(options);
             poll.setEndTime(System.currentTimeMillis() + durationMinutes * 60000L);
-            resolved.sendMessageEmbeds(PollButtonBuilder.buildEmbed(poll, Map.of()))
-                    .setComponents(PollButtonBuilder.buildRows(poll, false))
-                    .queue(message -> {
+            plugin.getDiscordManager().sendEmbed(resolved, PollButtonBuilder.buildEmbed(poll, Map.of()),
+                    PollButtonBuilder.buildRows(poll, false),
+                    message -> {
                         poll.setMessageId(message.getId());
                         plugin.getDiscordManager().getPollRepository().save(poll);
                         plugin.getDiscordManager().getPollScheduler().schedule(poll);
-                    }, error -> plugin.getLogger().warning("Scheduled poll failed: " + error.getMessage()));
+                    }, error -> plugin.getLogger().warning("Scheduled poll failed: " + error));
         }, minutes * 1200L);
     }
 

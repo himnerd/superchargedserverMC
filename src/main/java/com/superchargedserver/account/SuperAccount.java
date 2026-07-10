@@ -14,6 +14,7 @@ public class SuperAccount {
     private UUID accountId;
     private String primaryName = "";
     private String discordId;
+    private String discordTag = "";
     private final Set<UUID> javaUuids = ConcurrentHashMap.newKeySet();
     private final Set<UUID> bedrockUuids = ConcurrentHashMap.newKeySet();
     private String statusMessage = "";
