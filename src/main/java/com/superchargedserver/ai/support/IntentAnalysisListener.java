@@ -63,8 +63,7 @@ public class IntentAnalysisListener extends ListenerAdapter {
                 .setDescription("Critical term detected: `" + matched + "` — this ticket has been escalated "
                         + "for immediate administrator review.")
                 .setColor(new Color(0xE74C3C))
-                .setFooter("SuperCharged Intent Analysis")
-                .setTimestamp(Instant.now());
+                .setFooter("SuperCharged Intent Analysis");
 
         if (pings.isEmpty()) {
             channel.sendMessageEmbeds(embed.build()).queue(null, error -> { });

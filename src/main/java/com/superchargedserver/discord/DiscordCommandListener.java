@@ -38,6 +38,8 @@ import org.bukkit.entity.Player;
 
 import java.awt.Color;
 import java.time.Instant;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -73,13 +75,16 @@ public class DiscordCommandListener extends ListenerAdapter {
                         .addOptions(new OptionData(OptionType.STRING, "code", "The code shown by /link in-game", true)),
                 Commands.slash("embed", "Open the live embed builder dashboard")
                         .addOptions(new OptionData(OptionType.CHANNEL, "channel", "Pre-select the destination channel", false)
-                                .setChannelTypes(ChannelType.TEXT)),
+                                .setChannelTypes(ChannelType.TEXT),
+                                new OptionData(OptionType.ATTACHMENT, "thumbnail-file", "Upload an image to use as the thumbnail", false),
+                                new OptionData(OptionType.ATTACHMENT, "image-file", "Upload an image to use as the main image", false)),
                 Commands.slash("announce", "Compose an announcement with a live Discord + in-game preview"),
                 Commands.slash("poll", "Open the interactive poll creation studio"),
                 Commands.slash("profile", "Customize the announcement webhook identity")
                         .addOptions(
                                 new OptionData(OptionType.STRING, "name", "New webhook display name", false),
-                                new OptionData(OptionType.STRING, "avatar-url", "New webhook avatar image URL", false)),
+                                new OptionData(OptionType.STRING, "avatar-url", "New webhook avatar image URL", false),
+                                new OptionData(OptionType.ATTACHMENT, "avatar-file", "Upload an image to use as the webhook avatar", false)),
                 Commands.slash("status", "Live server performance and online players"),
                 Commands.slash("execute", "Run a console command on the server")
                         .addOptions(new OptionData(OptionType.STRING, "command", "Command to execute (without /)", true)),
@@ -212,6 +217,13 @@ public class DiscordCommandListener extends ListenerAdapter {
             }
         }
 
+        if (event.getOption("thumbnail-file") != null) {
+            session.setThumbnail(event.getOption("thumbnail-file").getAsAttachment().getUrl());
+        }
+        if (event.getOption("image-file") != null) {
+            session.setImage(event.getOption("image-file").getAsAttachment().getUrl());
+        }
+
         event.replyEmbeds(renderEmbedPreview(session))
                 .setComponents(dashboardRows(session, event.getJDA()))
                 .setEphemeral(true)
@@ -292,7 +304,7 @@ public class DiscordCommandListener extends ListenerAdapter {
         TextInput.Builder message = TextInput.create("message", "Announcement Message", TextInputStyle.PARAGRAPH)
                 .setRequired(true)
                 .setMaxLength(1800)
-                .setPlaceholder("Supports MiniMessage / hex colors for the in-game broadcast");
+                .setPlaceholder("Supports MiniMessage / hex colors, or /scslink: <link> to import a .txt / .pdf");
         if (!session.getAnnouncementText().isBlank()) {
             message.setValue(session.getAnnouncementText());
         }
@@ -457,10 +469,10 @@ public class DiscordCommandListener extends ListenerAdapter {
         MessageEmbed built = buildFinalEmbed(session, event.getUser().getName());
         drafts().destroy(event.getUser().getId());
         event.deferEdit().queue();
-        channel.sendMessageEmbeds(built).queue(
-                message -> event.getHook().editOriginal("📣 Embed published in " + channel.getAsMention() + ".")
+        plugin.getDiscordManager().sendEmbed(channel, built, null,
+                message -> event.getHook().editOriginal("Embed published in " + channel.getAsMention() + ".")
                         .setEmbeds().setComponents().queue(),
-                error -> event.getHook().editOriginal("⚠ Failed to send embed: " + error.getMessage())
+                error -> event.getHook().editOriginal("Failed to send embed: " + error)
                         .setEmbeds().setComponents().queue());
     }
 
@@ -494,14 +506,14 @@ public class DiscordCommandListener extends ListenerAdapter {
                                 .setRequired(false).setMaxLength(256), session.getTitle())),
                         ActionRow.of(prefilled(TextInput.create("description", "Description", TextInputStyle.PARAGRAPH)
                                 .setRequired(false).setMaxLength(4000)
-                                .setPlaceholder("Type text \u2014 or paste a .txt / .pdf link (Drive, Dropbox, iCloud supported)"),
+                                .setPlaceholder("Type text \u2014 or /scslink: <link> to import a .txt / .pdf (Drive, Dropbox, iCloud)"),
                                 session.getDescription())),
                         ActionRow.of(prefilled(TextInput.create("color", "Color (hex)", TextInputStyle.SHORT)
                                 .setRequired(false).setPlaceholder("#7B2FFF").setMaxLength(7), session.getColorHex())),
                         ActionRow.of(prefilled(TextInput.create("thumbnail", "Thumbnail URL", TextInputStyle.SHORT)
                                 .setRequired(false), session.getThumbnail())),
                         ActionRow.of(prefilled(TextInput.create("image", "Image URL", TextInputStyle.SHORT)
-                                .setRequired(false), session.getImage())))
+                                .setRequired(false).setPlaceholder("Or re-run /embed with thumbnail-file/image-file to upload a file"), session.getImage())))
                 .build();
     }
 
@@ -512,7 +524,7 @@ public class DiscordCommandListener extends ListenerAdapter {
                                 .setRequired(true).setMaxLength(256).build()),
                         ActionRow.of(TextInput.create("value", "Field Value / Text", TextInputStyle.PARAGRAPH)
                                 .setRequired(true).setMaxLength(1024)
-                                .setPlaceholder("Type text \u2014 or paste a .txt / .pdf link (Drive, Dropbox, iCloud supported)")
+                                .setPlaceholder("Type text \u2014 or /scslink: <link> to import a .txt / .pdf (Drive, Dropbox, iCloud)")
                                 .build()),
                         ActionRow.of(TextInput.create("inline", "Inline (true / false)", TextInputStyle.SHORT)
                                 .setRequired(false).setPlaceholder("false").setMaxLength(5).build()))
@@ -521,8 +533,8 @@ public class DiscordCommandListener extends ListenerAdapter {
 
     private Modal scheduleModal() {
         return Modal.create("sc-eb-m:schedule", "Embed — Schedule")
-                .addComponents(ActionRow.of(TextInput.create("minutes", "Minutes from now (1 - 10080)", TextInputStyle.SHORT)
-                        .setRequired(true).setPlaceholder("60").setMaxLength(5).build()))
+                .addComponents(ActionRow.of(TextInput.create("timestamps", "Post at <t:...> [to takedown <t:...>]", TextInputStyle.SHORT)
+                        .setRequired(true).setPlaceholder("<t:1719000000:f> to <t:1719003600:f>").setMaxLength(120).build()))
                 .build();
     }
 
@@ -559,7 +571,7 @@ public class DiscordCommandListener extends ListenerAdapter {
                 session.setImage(orEmpty(modalValue(event, "image")));
                 if (ExternalFileIngestor.isIngestableLink(description)) {
                     session.setDescription("\u23f3 Importing document\u2026");
-                    beginIngestion(event, session, description.trim(), -1);
+                    beginIngestion(event, session, ExternalFileIngestor.stripLinkCommand(description), -1);
                     return;
                 }
                 session.setDescription(description);
@@ -575,7 +587,7 @@ public class DiscordCommandListener extends ListenerAdapter {
                         int target = session.getFields().size();
                         session.getFields().add(new DraftSession.Field(
                                 modalValue(event, "title"), "\u23f3 Importing document\u2026", inline));
-                        beginIngestion(event, session, value.trim(), target);
+                        beginIngestion(event, session, ExternalFileIngestor.stripLinkCommand(value), target);
                         return;
                     }
                     session.getFields().add(new DraftSession.Field(
@@ -587,7 +599,13 @@ public class DiscordCommandListener extends ListenerAdapter {
             }
             case "sc-eb-m:schedule" -> scheduleEmbed(event, session);
             case "sc-an-m:text" -> {
-                session.setAnnouncementText(orEmpty(modalValue(event, "message")));
+                String message = orEmpty(modalValue(event, "message"));
+                if (ExternalFileIngestor.isIngestableLink(message)) {
+                    session.setAnnouncementText("\u23f3 Importing document\u2026");
+                    beginAnnouncementIngestion(event, session, ExternalFileIngestor.stripLinkCommand(message));
+                    return;
+                }
+                session.setAnnouncementText(message);
                 if (event.getMessage() != null) {
                     event.editMessageEmbeds(renderAnnouncePreview(session))
                             .setComponents(announceRows())
@@ -621,6 +639,31 @@ public class DiscordCommandListener extends ListenerAdapter {
                 : ".";
         expireMessage(event.editMessage("\u2705 Added " + added + " field(s) from the imported document" + note
                 + " The dashboard preview refreshes on your next action there."));
+    }
+
+    private void beginAnnouncementIngestion(ModalInteractionEvent event, DraftSession session, String url) {
+        String userId = event.getUser().getId();
+        String channelId = event.getChannel().getId();
+        String token = safetyFilter.issue(userId, channelId);
+        event.deferEdit().queue();
+        ExternalFileIngestor.ingestAsync(url, result -> {
+            if (!safetyFilter.consume(token, userId, channelId)) return;
+            if (drafts().get(userId) != session) return;
+            if (!result.success()) {
+                session.setAnnouncementText("");
+                event.getHook().editOriginalEmbeds(renderAnnouncePreview(session))
+                        .setComponents(announceRows())
+                        .queue();
+                event.getHook().sendMessage("\u26a0 Document import failed: " + result.error())
+                        .setEphemeral(true).queue();
+                return;
+            }
+            List<String> chunks = ExternalFileIngestor.chunk(result.text(), 4000, 4000);
+            session.setAnnouncementText(chunks.isEmpty() ? "(empty document)" : chunks.get(0));
+            event.getHook().editOriginalEmbeds(renderAnnouncePreview(session))
+                    .setComponents(announceRows())
+                    .queue();
+        });
     }
 
     private void beginIngestion(ModalInteractionEvent event, DraftSession session, String url, int fieldIndex) {
@@ -672,18 +715,45 @@ public class DiscordCommandListener extends ListenerAdapter {
         });
     }
 
-    private void scheduleEmbed(ModalInteractionEvent event, DraftSession session) {
-        long minutes;
+    private static final Pattern TIMESTAMP_PATTERN = Pattern.compile("<t:(-?\\d+)(?::\\w)?>|(\\d{9,13})");
+
+    /** Parses a Discord timestamp token (either &lt;t:UNIX:f&gt; or a raw unix value) into epoch millis. */
+    private Long parseTimestampToken(String token) {
+        Matcher matcher = TIMESTAMP_PATTERN.matcher(token.trim());
+        if (!matcher.matches()) return null;
+        String raw = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
         try {
-            minutes = Long.parseLong(modalValue(event, "minutes").trim());
+            long value = Long.parseLong(raw);
+            return value > 100_000_000_000L ? value : value * 1000L;
         } catch (NumberFormatException ex) {
-            event.reply("❌ Enter a whole number of minutes.").setEphemeral(true).queue();
+            return null;
+        }
+    }
+
+    private void scheduleEmbed(ModalInteractionEvent event, DraftSession session) {
+        String raw = modalValue(event, "timestamps").trim();
+        String[] parts = raw.split("(?i)\\s+to\\s+");
+        Long postAtMillis = parseTimestampToken(parts[0]);
+        if (postAtMillis == null) {
+            event.reply("❌ Couldn't read that timestamp. Use Discord's `<t:UNIX:f>` format (right-click a message time, or generate one at a site like hammertime.cyou), separated by \"to\" for a takedown time.")
+                    .setEphemeral(true).queue();
             return;
         }
-        if (minutes < 1 || minutes > 10080) {
-            event.reply("❌ Minutes must be between 1 and 10080 (one week).").setEphemeral(true).queue();
-            return;
+        Long takedownAtMillis = null;
+        if (parts.length > 1) {
+            takedownAtMillis = parseTimestampToken(parts[1]);
+            if (takedownAtMillis == null) {
+                event.reply("❌ Couldn't read the takedown timestamp. Use Discord's `<t:UNIX:f>` format.")
+                        .setEphemeral(true).queue();
+                return;
+            }
+            if (takedownAtMillis <= postAtMillis) {
+                event.reply("❌ The takedown timestamp must be after the post timestamp.").setEphemeral(true).queue();
+                return;
+            }
         }
+        long nowMillis = System.currentTimeMillis();
+        long postDelayTicks = Math.max(0L, (postAtMillis - nowMillis) / 50L);
         TextChannel channel = resolveChannel(event.getJDA(), session);
         if (channel == null) {
             event.reply("❌ The destination channel no longer exists.").setEphemeral(true).queue();
@@ -693,28 +763,33 @@ public class DiscordCommandListener extends ListenerAdapter {
         String channelId = channel.getId();
         drafts().destroy(event.getUser().getId());
 
+        String summary = "🕒 Embed scheduled for " + channel.getAsMention() + " — posts at <t:" + (postAtMillis / 1000L) + ":f>"
+                + (takedownAtMillis != null ? ", takes down at <t:" + (takedownAtMillis / 1000L) + ":f>" : "") + ".";
         if (event.getMessage() != null) {
-            event.editMessage("🕒 Embed scheduled for " + channel.getAsMention() + " in **" + minutes + " minute(s)**.")
-                    .setEmbeds().setComponents().queue();
+            event.editMessage(summary).setEmbeds().setComponents().queue();
         } else {
-            event.reply("🕒 Embed scheduled for " + channel.getAsMention() + " in **" + minutes + " minute(s)**.")
-                    .setEphemeral(true).queue();
+            event.reply(summary).setEphemeral(true).queue();
         }
+
+        Long finalTakedownAtMillis = takedownAtMillis;
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
             TextChannel resolved = plugin.getDiscordManager().isReady()
                     ? plugin.getDiscordManager().getJda().getTextChannelById(channelId) : null;
-            if (resolved != null) {
-                resolved.sendMessageEmbeds(built).queue(null,
-                        error -> plugin.getLogger().warning("Scheduled embed failed: " + error.getMessage()));
-            }
-        }, minutes * 1200L);
+            if (resolved == null) return;
+            plugin.getDiscordManager().sendEmbed(resolved, built, null, message -> {
+                if (finalTakedownAtMillis == null) return;
+                long takedownDelayTicks = Math.max(0L, (finalTakedownAtMillis - System.currentTimeMillis()) / 50L);
+                Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () ->
+                        message.delete().queue(null, error ->
+                                plugin.getLogger().warning("Scheduled embed takedown failed: " + error.getMessage())),
+                        takedownDelayTicks);
+            }, error -> plugin.getLogger().warning("Scheduled embed failed: " + error));
+        }, postDelayTicks);
     }
 
     private MessageEmbed buildFinalEmbed(DraftSession session, String authorName) {
         EmbedBuilder embed = new EmbedBuilder()
-                .setColor(parseColor(session.getColorHex()))
-                .setFooter(authorName)
-                .setTimestamp(Instant.now());
+                .setColor(parseColor(session.getColorHex()));
         if (!session.getTitle().isBlank()) embed.setTitle(session.getTitle());
         if (!session.getDescription().isBlank()) embed.setDescription(session.getDescription());
         if (session.getThumbnail().startsWith("http")) embed.setThumbnail(session.getThumbnail());
@@ -757,12 +832,15 @@ public class DiscordCommandListener extends ListenerAdapter {
     private void handleProfile(SlashCommandInteractionEvent event) {
         String name = event.getOption("name") == null ? null : event.getOption("name").getAsString();
         String avatar = event.getOption("avatar-url") == null ? null : event.getOption("avatar-url").getAsString();
+        if (event.getOption("avatar-file") != null) {
+            avatar = event.getOption("avatar-file").getAsAttachment().getUrl();
+        }
         if (name == null && avatar == null) {
-            event.reply("Provide `name` and/or `avatar-url`.").setEphemeral(true).queue();
+            event.reply("Provide `name` and/or `avatar-url`/`avatar-file`.").setEphemeral(true).queue();
             return;
         }
         if (avatar != null && !avatar.isBlank() && !avatar.startsWith("http")) {
-            event.reply("❌ `avatar-url` must be a valid http(s) image URL.").setEphemeral(true).queue();
+            event.reply("\u274c `avatar-url` must be a valid http(s) image URL.").setEphemeral(true).queue();
             return;
         }
         plugin.getDiscordManager().setWebhookProfile(name, avatar);
@@ -773,8 +851,7 @@ public class DiscordCommandListener extends ListenerAdapter {
                 .addField("Display Name", plugin.getDiscordManager().getWebhookName(), true)
                 .addField("Avatar", plugin.getDiscordManager().getWebhookAvatar().isBlank()
                         ? "Default" : plugin.getDiscordManager().getWebhookAvatar(), true)
-                .setFooter("SuperChargedServer")
-                .setTimestamp(Instant.now());
+                .setFooter("HimnerdMC");
         if (!plugin.getDiscordManager().getWebhookAvatar().isBlank()) {
             embed.setThumbnail(plugin.getDiscordManager().getWebhookAvatar());
         }
@@ -806,8 +883,7 @@ public class DiscordCommandListener extends ListenerAdapter {
                     .addField("RAM", usedMb + " / " + maxMb + " MB " + bar(usedMb, maxMb), true)
                     .addField("Online", names.size() + " / " + Bukkit.getMaxPlayers(), true)
                     .addField("Players", playerList, false)
-                    .setFooter("SuperChargedServer")
-                    .setTimestamp(Instant.now());
+                    .setFooter("HimnerdMC");
             event.getHook().sendMessageEmbeds(embed.build()).queue();
         });
     }
@@ -838,8 +914,7 @@ public class DiscordCommandListener extends ListenerAdapter {
                 .addField("Link Status", account != null
                         ? "🟢 Linked as **" + account.getPrimaryName() + "**"
                         : "⚪ Not linked — run `/link` in-game to get your code", false)
-                .setFooter("SuperChargedServer")
-                .setTimestamp(Instant.now());
+                .setFooter("HimnerdMC");
         if (account != null) {
             embed.addField("Play Points", String.valueOf(account.getPlayPoints()), true);
         }
@@ -875,8 +950,7 @@ public class DiscordCommandListener extends ListenerAdapter {
                 .addField("Java UUIDs", String.valueOf(account.getJavaUuids().size()), true)
                 .addField("Bedrock UUIDs", String.valueOf(account.getBedrockUuids().size()), true)
                 .addField("Linked UUIDs", uuids.isEmpty() ? "None" : uuids, false)
-                .setFooter("SuperChargedServer")
-                .setTimestamp(Instant.now());
+                .setFooter("HimnerdMC");
         event.replyEmbeds(embed.build()).setEphemeral(true).queue();
     }
 
@@ -894,8 +968,7 @@ public class DiscordCommandListener extends ListenerAdapter {
                 .addField("Thresholds", "Low " + ai.getDouble("thresholds.low", 40.0)
                         + " / Med " + ai.getDouble("thresholds.medium", 70.0)
                         + " / Crit " + ai.getDouble("thresholds.critical", 90.0), false)
-                .setFooter("SuperChargedServer")
-                .setTimestamp(Instant.now());
+                .setFooter("HimnerdMC");
         event.replyEmbeds(embed.build()).setEphemeral(true).queue();
     }
 

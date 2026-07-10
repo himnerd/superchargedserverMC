@@ -133,7 +133,15 @@ const embedCommand: Command = {
         .addStringOption(option =>
             option.setName('json_code')
                 .setDescription('Embed JSON, e.g. {"title":"Hi","description":"...","color":"#FF0000"}')
-                .setRequired(true)),
+                .setRequired(true))
+        .addAttachmentOption(option =>
+            option.setName('thumbnail_file')
+                .setDescription('Upload an image to use as the thumbnail (overrides JSON thumbnail)')
+                .setRequired(false))
+        .addAttachmentOption(option =>
+            option.setName('image_file')
+                .setDescription('Upload an image to use as the main image (overrides JSON image)')
+                .setRequired(false)),
 
     async execute(interaction: ChatInputCommandInteraction): Promise<void> {
         const jsonCode = interaction.options.getString('json_code', true);
@@ -154,6 +162,12 @@ const embedCommand: Command = {
             await interaction.reply({ content: `❌ ${error}`, ephemeral: true });
             return;
         }
+
+        const thumbnailFile = interaction.options.getAttachment('thumbnail_file');
+        if (thumbnailFile) embed.thumbnail = { url: thumbnailFile.url };
+
+        const imageFile = interaction.options.getAttachment('image_file');
+        if (imageFile) embed.image = { url: imageFile.url };
 
         try {
             await interaction.reply({ embeds: [EmbedBuilder.from(embed)] });

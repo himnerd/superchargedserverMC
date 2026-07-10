@@ -54,10 +54,20 @@ public final class ExternalFileIngestor {
     private ExternalFileIngestor() {
     }
 
-    /** True when the input is a lone http(s) URL pointing at a .txt/.pdf or a supported cloud share link. */
-    public static boolean isIngestableLink(String input) {
-        if (input == null) return false;
+    private static final String LINK_COMMAND_PREFIX = "/scslink:";
+
+    /** Strips the required {@code /scslink:} prefix from user input and returns the raw link, or null if the prefix is absent. */
+    public static String stripLinkCommand(String input) {
+        if (input == null) return null;
         String candidate = input.trim();
+        if (!candidate.regionMatches(true, 0, LINK_COMMAND_PREFIX, 0, LINK_COMMAND_PREFIX.length())) return null;
+        return candidate.substring(LINK_COMMAND_PREFIX.length()).trim();
+    }
+
+    /** True when the input is a {@code /scslink: <url>} command pointing at a .txt/.pdf or a supported cloud share link. */
+    public static boolean isIngestableLink(String input) {
+        String candidate = stripLinkCommand(input);
+        if (candidate == null) return false;
         if (!candidate.startsWith("http://") && !candidate.startsWith("https://")) return false;
         if (candidate.contains(" ") || candidate.contains("\n")) return false;
         String lower = stripQuery(candidate).toLowerCase(Locale.ROOT);

@@ -13,11 +13,14 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Activity;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.IncomingWebhookClient;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.Webhook;
 import net.dv8tion.jda.api.entities.WebhookClient;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.restaction.WebhookMessageCreateAction;
 import org.bukkit.Bukkit;
@@ -28,7 +31,10 @@ import java.awt.Color;
 import java.io.File;
 import java.time.Instant;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -40,7 +46,7 @@ public class DiscordManager {
     private PollScheduler pollScheduler;
     private PollCreationWizard pollWizard;
     private JDA jda;
-    private IncomingWebhookClient announcer;
+    private final Map<String, IncomingWebhookClient> webhookClients = new HashMap<>();
     private String webhookName = "SuperCharged Announcer";
     private String webhookAvatar = "";
 
@@ -100,7 +106,7 @@ public class DiscordManager {
         }
         pollRepository = null;
         pollWizard = null;
-        announcer = null;
+        webhookClients.clear();
         if (jda != null) {
             jda.shutdown();
             jda = null;
@@ -171,10 +177,24 @@ public class DiscordManager {
     /**
      * Sends a message through the announcements-channel webhook using the
      * custom identity set via /profile. The webhook client is resolved once
-     * and cached for zero-overhead subsequent announcements.
+     * per channel and cached for zero-overhead subsequent sends.
      */
     public void sendAnnouncement(String content, Runnable success, Consumer<String> error) {
-        withAnnouncer(client -> {
+        String channelId = plugin.getConfigManager().discord().getString("announcements.channel-id", "");
+        if (channelId == null || channelId.isBlank()) {
+            error.accept("announcements.channel-id is not configured");
+            return;
+        }
+        if (jda == null) {
+            error.accept("Discord bridge is offline");
+            return;
+        }
+        TextChannel channel = jda.getTextChannelById(channelId);
+        if (channel == null) {
+            error.accept("announcement channel not found: " + channelId);
+            return;
+        }
+        withWebhook(channel, client -> {
             WebhookMessageCreateAction<Message> action = client.sendMessage(content).setUsername(webhookName);
             if (webhookAvatar != null && !webhookAvatar.isBlank()) {
                 action.setAvatarUrl(webhookAvatar);
@@ -183,23 +203,33 @@ public class DiscordManager {
         }, error);
     }
 
-    private void withAnnouncer(Consumer<IncomingWebhookClient> action, Consumer<String> error) {
+    /**
+     * Sends an embed (optionally with components) through the destination
+     * channel's webhook, applying the /profile identity consistently across
+     * embeds, polls, and announcements.
+     */
+    public void sendEmbed(TextChannel channel, net.dv8tion.jda.api.entities.MessageEmbed embed, List<ActionRow> components,
+                           Consumer<Message> success, Consumer<String> error) {
+        withWebhook(channel, client -> {
+            WebhookMessageCreateAction<Message> action = client.sendMessageEmbeds(embed).setUsername(webhookName);
+            if (webhookAvatar != null && !webhookAvatar.isBlank()) {
+                action.setAvatarUrl(webhookAvatar);
+            }
+            if (components != null && !components.isEmpty()) {
+                action.setComponents(components);
+            }
+            action.queue(success, throwable -> error.accept(throwable.getMessage()));
+        }, error);
+    }
+
+    private void withWebhook(TextChannel channel, Consumer<IncomingWebhookClient> action, Consumer<String> error) {
         if (jda == null) {
             error.accept("Discord bridge is offline");
             return;
         }
-        if (announcer != null) {
-            action.accept(announcer);
-            return;
-        }
-        String channelId = plugin.getConfigManager().discord().getString("announcements.channel-id", "");
-        if (channelId == null || channelId.isBlank()) {
-            error.accept("announcements.channel-id is not configured");
-            return;
-        }
-        TextChannel channel = jda.getTextChannelById(channelId);
-        if (channel == null) {
-            error.accept("announcement channel not found: " + channelId);
+        IncomingWebhookClient cached = webhookClients.get(channel.getId());
+        if (cached != null) {
+            action.accept(cached);
             return;
         }
         String selfId = jda.getSelfUser().getId();
@@ -209,13 +239,15 @@ public class DiscordManager {
                     .filter(hook -> hook.getOwnerAsUser() != null && hook.getOwnerAsUser().getId().equals(selfId))
                     .findFirst().orElse(null);
             if (mine != null) {
-                announcer = WebhookClient.createClient(jda, mine.getUrl());
-                action.accept(announcer);
+                IncomingWebhookClient client = WebhookClient.createClient(jda, mine.getUrl());
+                webhookClients.put(channel.getId(), client);
+                action.accept(client);
                 return;
             }
             channel.createWebhook(webhookName).queue(created -> {
-                announcer = WebhookClient.createClient(jda, created.getUrl());
-                action.accept(announcer);
+                IncomingWebhookClient client = WebhookClient.createClient(jda, created.getUrl());
+                webhookClients.put(channel.getId(), client);
+                action.accept(client);
             }, throwable -> error.accept("failed to create webhook: " + throwable.getMessage()));
         }, throwable -> error.accept("failed to fetch webhooks: " + throwable.getMessage()));
     }
@@ -249,11 +281,9 @@ public class DiscordManager {
                 .setDescription(description)
                 .setColor(active ? new Color(0xE74C3C) : new Color(0x2ECC71))
                 .addField("Network Status", active ? "🔴 Under Maintenance" : "🟢 Online", true)
-                .setFooter("SuperChargedServer")
-                .setTimestamp(Instant.now());
-        channel.sendMessageEmbeds(embed.build()).queue(
-                null,
-                error -> plugin.getLogger().warning("Failed to send maintenance embed: " + error.getMessage()));
+                .setFooter("HimnerdMC");
+        sendEmbed(channel, embed.build(), null, message -> { },
+                error -> plugin.getLogger().warning("Failed to send maintenance embed: " + error));
     }
 
     private void updatePresence(boolean active, FileConfiguration config) {
@@ -296,7 +326,42 @@ public class DiscordManager {
     public void logLink(SuperAccount account, UUID playerUuid) {
     }
 
+    /**
+     * Fetches the linked Discord user's tag and caches it on the account.
+     * Blocking call — always invoke off the main thread (async link flows).
+     */
     public void applyDiscordName(SuperAccount account) {
+        if (jda == null || !account.isLinkedToDiscord()) return;
+        try {
+            User user = jda.retrieveUserById(account.getDiscordId()).complete();
+            if (user != null) {
+                account.setDiscordTag(user.getName());
+                if (plugin.getConfigManager().superAccounts()
+                        .getBoolean("naming-hierarchy.prefer-discord-tag", true)) {
+                    account.setPrimaryName(user.getName());
+                }
+            }
+        } catch (Exception ex) {
+            plugin.getLogger().warning("Failed to resolve Discord tag for " + account.getDiscordId()
+                    + ": " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Checks live guild membership for the join-gate. Blocking call — only
+     * safe from the async pre-login thread.
+     */
+    public boolean isGuildMember(String discordId) {
+        if (jda == null || discordId == null || discordId.isEmpty()) return false;
+        String guildId = plugin.getConfigManager().discord().getString("bot-settings.guild-id", "");
+        if (guildId.isEmpty()) return false;
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) return false;
+        try {
+            return guild.retrieveMemberById(discordId).complete() != null;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     public void logSecurity(String title, String message) {
